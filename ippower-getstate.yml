@@ -1,0 +1,36 @@
+---
+- name: Get the power state of the IP Power 9258 unit
+  hosts: ippower
+  gather_facts: no
+  tasks:
+  - name: Get the state of all of the ports
+    uri:
+      url: "http://{{ inventory_hostname }}/Set.cmd?CMD=GetPower"
+      user: "{{ ippower_user }}"
+      password: "{{ ippower_pass }}"
+      return_content: yes
+    register: output
+    delegate_to: localhost
+
+  - name: Creating dictionary from the output
+    # output.content looks like this: <html>p61=1,p62=1,p63=1,p64=1</html>, 
+    # where P61 thru P64 are the 4 outlets and
+    # 1 is outlet on, 0 is outlet off
+    # we create a dictionary by splitting on the comma in output.content,
+    # create an index variable outlet_index to track the outlet number in a dictionary named 'result'
+    # if 'result' is not set, default to empty {} and combine with local vars: 'key' and 'value'
+    # local vars: 'value' is set by removing all content except the outlet state using regex_replace
+    # replace '0' to be 'Off'
+    # create an if/then by searching for Off and if not found output On
+    # result = {"Port1": "On", "Port2": "Off" ...}
+    set_fact:
+      result: "{{ result | default({},true) | combine( { key: value } ) }}"
+    loop: "{{ output.content.split(',') }}"
+    loop_control:
+      index_var: outlet_index
+    vars:
+     key: "port{{ outlet_index+1 }}"
+     value: "{{item | regex_replace('(.*)=','') | replace('0','Off') | regex_search('Off') | default('On', true) }}"
+
+  - name: Show the Parsed Output
+    debug: var=result

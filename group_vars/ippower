@@ -1,0 +1,5 @@
+# to encrypt your passwords use the following:
+# echo -n $password | ansible-vault  --ask-vault-pass encrypt_string
+# these are the device defaults
+ippower_user: admin
+ippower_pass: 12345678
